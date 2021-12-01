@@ -32,3 +32,56 @@
                        (else
                         (make-list (- max min)
                                    (r:alt expr "")))))))
+
+(define (r:char-from string)
+  (case (string-length string)
+    ((0) (r:seq))
+    ((1) (r:quote string))
+    (else
+     (bracket string (lambda (members)
+                       (if (lset= eqv? '(#\- #\^) members)
+                           '(#\- #\^)
+                           (quote-bracketed-contents members)))))))
+
+(define (r:char-not-from string)
+  (bracket string
+           (lambda (members)
+             (cons #\^ (quote-bracketed-contents members)))))
+
+(define (bracket string procedure)
+  (list->string
+   (append '(#\[)
+           (procedure (string->list string))
+           '(#\]))))
+
+(define (quote-bracketed-contents members)
+  (define (optional char)
+    (if (memv char members) (list char) '()))
+  (append (optional #\])
+          (remove
+           (lambda (c)
+             (memv c chars-needing-quoting-in-brackets))
+           members)
+          (optional #\^)
+          (optional #\-)))
+
+(define chars-needing-quoting-in-brackets '(#\] #\^ #\-))
+
+(define (write-bourne-shell-grep-command expr filename)
+  (display (bourne-shell-grep-command-string expr filename)))
+
+(define (bourne-shell-grep-command-string expr filename)
+  (string-append "grep -e "
+                 (bourne-shell-quote-string expr)
+                 " "
+                 filename))
+
+(define (bourne-shell-quote-string string)
+  (list->string
+   (append (list #\')
+           (append-map (lambda (char)
+                         (if (char=? char #\')
+                             (list #\' #\\ char #\')
+                             (list char)))
+                       (string->list string))
+           (list #\'))))
