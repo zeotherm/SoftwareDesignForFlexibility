@@ -1,8 +1,20 @@
-(define (compose f g)
-  (define (the-composition . args)
-    (call-with-values (lambda () (apply g args))
-      f))
-  (restrict-arity the-composition (get-arity g)))
+;(define (compose f g)
+;  (define (the-composition . args)
+;    (call-with-values (lambda () (apply g args))
+;      f))
+;  (restrict-arity the-composition (get-arity g)))
+
+(define (compose2 f g)
+  (restrict-arity
+   (lambda args (call-with-values (lambda () (apply g args)) f))
+   (get-arity g)))
+
+(define (compose . fs)
+  (if (null? fs)
+      values
+      (let ((gs (reverse fs)))
+        (fold compose2 (car gs) (cdr gs)))))
+
 
 (define ((iterate n) f)
   (if (= n 0)
@@ -58,3 +70,5 @@
   (let ((zero-celcius 273.15)) ;K
     (make-unit-conversion (lambda (c) (+ c zero-celcius))
                           (lambda (k) (- k zero-celcius)))))
+
+(define farenheit-to-kelvin (compose celcius-to-kelvin farenheit-to-celcius))
