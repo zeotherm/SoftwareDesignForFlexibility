@@ -84,3 +84,69 @@
                      (simple-operation operator number?
                                        (get-implementation-value
                                         (operator->procedure-name operator))))))
+
+(define (symbolic-extender base-arithmetic)
+  (make-arithmetic 'symbolic symbolic? (list base-arithmetic)
+                   (lambda (name base-constant) ; constant generator
+                     base-constant)
+                   (let ((base-predicate
+                          (arithmetic-domain-predicate base-arithmetic)))
+                     (lambda (operator base-operation) ; operator generator
+                       (make-operation operator
+                                       (any-arg (operator-arity operator)
+                                                symbolic?
+                                                base-predicate)
+                                       (lambda args
+                                         (cons operator args)))))))
+
+(define (add-arithmetics . arithmetics)
+  (add-arithmetics* arithmetics))
+
+(define (add-arithmetics* arithmetics)
+  (if (n:null? (cdr arithmetics))
+      (car arithmetics) ; only one arithmetic to handle
+      (make-arithmetic 'add
+                       (disjoin*
+                        (map arithmetic-domain-predicate
+                             arithmetics))
+                       arithmetics
+                       constant-union
+                       operation-union)))
+
+(define (constant-union name . constants)
+  (let ((unique
+         (remove default-object?
+                 (delete-duplicates constants eqv?))))
+    (if (n:pair? unique)
+        (car unique)
+        (default-object))))
+
+(define (operation-union operator . operations)
+  (operation-union* operator operations))
+
+(define (operation-union* operator operations)
+  (make-operation operator
+                  (applicability-union*
+                   (map operation-applicability operations))
+                  (lambda args
+                    (operation-union-dispatch operator
+                                              operations
+                                              args))))
+
+(define (operation-union-dispatch operator operations args)
+  (let ((operation
+         (find (lambda (operation)
+                 (is-operation-applicable? operation args))
+               operations)))
+    (if (not operation)
+        (error "Inapplicable operation:" operator args))
+    (apply-operation operation args)))
+
+(define (extend-arithmetic extender base-arithmetic)
+  (add-arithmetics base-arithmetic
+                   (extender base-arithmetic)))
+
+(define combined-arithmetic
+  (extend-arithmetic symbolic-extender numeric-arithmetic))
+
+; (install-arithmetic! combined-arithmetic)
