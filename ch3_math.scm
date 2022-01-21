@@ -60,3 +60,27 @@
 ;;(install-arithmetic! symbolic-arithmetic-1)
 
 ;;(pp (x 0 ((evolver F 'h stormer-2) (make-initial-history 't 'h 'xt 'xt-h 'xt-2h) 1)))
+
+(define (make-operation operator applicability procedure)
+  (list 'operation operator applicability procedure))
+
+(define (operation-applicability operation)
+  (caddr operation))
+
+(define (simple-operation operator predicate procedure)
+  (make-operation operator
+                  (all-args (operator-arity operator)
+                            predicate)
+                  procedure))
+
+(define numeric-arithmetic
+  (make-arithmetic 'numeric number? '()
+                   (lambda (name)
+                     (case name
+                       ((additive-identity) 0)
+                       ((multiplicative-identity) 1)
+                       (else (default-object))))
+                   (lambda (operator)
+                     (simple-operation operator number?
+                                       (get-implementation-value
+                                        (operator->procedure-name operator))))))
